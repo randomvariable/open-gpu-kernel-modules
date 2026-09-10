@@ -607,6 +607,7 @@ nv_mem_pool_reclaim
     mem_pool->pages_owned -= entries_freed;
     os_release_mutex(mem_pool->lock);
 
+    nv_mem_pool_mod_misc_reclaimable(mem_pool, -(long)entries_freed);
     nv_mem_pool_free_page_list(&reclaim_list, mem_pool->order);
 
     return entries_freed;
