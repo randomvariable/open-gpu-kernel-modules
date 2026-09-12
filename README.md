@@ -40,6 +40,76 @@ option.  E.g.,
     sh ./NVIDIA-Linux-[...].run --no-kernel-modules
 
 
+## DKMS Installation
+
+Use DKMS to rebuild this source tree whenever the target kernel changes.
+The DKMS module name below is `nvidia-open`, so it does not collide with a
+distribution-provided `nvidia` DKMS record. Do not register two DKMS drivers
+that build the same NVIDIA modules for one kernel. Check `dkms status` and
+remove or disable a conflicting record before continuing.
+
+Install the build prerequisites for the running kernel. DGX OS, Ubuntu 24.04,
+and Ubuntu 26.04 use the same package names:
+
+    sudo apt update
+    sudo apt install --yes build-essential dkms linux-headers-$(uname -r)
+
+Before installing, verify that the running kernel has a usable build tree:
+
+    test -r /lib/modules/$(uname -r)/build/Makefile
+
+Register this checkout as a DKMS source tree. The archive contains the checked
+out revision without its Git metadata. The generated `dkms.conf` declares the
+five modules that this source package builds.
+
+    version=615.71.09
+    source=/usr/src/nvidia-open-$version
+    test ! -e "$source" || { echo "$source already exists"; exit 1; }
+    sudo install -d "$source"
+    git archive --format=tar HEAD | sudo tar -x -C "$source"
+    sudo tee "$source/dkms.conf" >/dev/null <<'EOF'
+    PACKAGE_NAME="nvidia-open"
+    PACKAGE_VERSION="615.71.09"
+    AUTOINSTALL="yes"
+    MAKE[0]="'make' -j$(nproc) KERNEL_UNAME=${kernelver} modules"
+    CLEAN="'make' clean"
+    BUILT_MODULE_NAME[0]="nvidia"
+    BUILT_MODULE_LOCATION[0]="kernel-open/nvidia"
+    DEST_MODULE_LOCATION[0]="/updates/dkms"
+    BUILT_MODULE_NAME[1]="nvidia-modeset"
+    BUILT_MODULE_LOCATION[1]="kernel-open/nvidia-modeset"
+    DEST_MODULE_LOCATION[1]="/updates/dkms"
+    BUILT_MODULE_NAME[2]="nvidia-drm"
+    BUILT_MODULE_LOCATION[2]="kernel-open/nvidia-drm"
+    DEST_MODULE_LOCATION[2]="/updates/dkms"
+    BUILT_MODULE_NAME[3]="nvidia-uvm"
+    BUILT_MODULE_LOCATION[3]="kernel-open/nvidia-uvm"
+    DEST_MODULE_LOCATION[3]="/updates/dkms"
+    BUILT_MODULE_NAME[4]="nvidia-peermem"
+    BUILT_MODULE_LOCATION[4]="kernel-open/nvidia-peermem"
+    DEST_MODULE_LOCATION[4]="/updates/dkms"
+    EOF
+
+Build and install for the running kernel:
+
+    kernel=$(uname -r)
+    sudo dkms add -m nvidia-open -v "$version"
+    sudo dkms build -m nvidia-open -v "$version" -k "$kernel"
+    sudo dkms install -m nvidia-open -v "$version" -k "$kernel"
+    sudo depmod -a "$kernel"
+    sudo dkms status nvidia-open/"$version"
+    modinfo -k "$kernel" -F filename nvidia
+
+The final command must report a path under
+`/lib/modules/<kernel>/updates/dkms/`. Reboot before loading the replacement
+modules. If Secure Boot is enabled, enroll a signing key that the kernel trusts
+before rebooting, or the kernel will reject the DKMS modules. After reboot,
+confirm that the loaded kernel driver and user-space driver are both 615.71.09:
+
+    cat /proc/driver/nvidia/version
+    nvidia-smi
+
+
 ## Supported Target CPU Architectures
 
 Currently, the kernel modules can be built for x86_64 or aarch64.
