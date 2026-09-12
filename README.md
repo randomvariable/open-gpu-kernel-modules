@@ -3,6 +3,27 @@
 This is the source release of the NVIDIA Linux open GPU kernel modules,
 version 615.71.09.
 
+## randomvariable DGX Spark Patch Set
+
+The `spark-615.71.09` branch and `spark-615.71.09-1` tag add three
+DGX Spark (GB10) changes to NVIDIA's `615.71.09` release commit
+`61dcc93722ecb418bb5f2e00923f05b4b8051dd1`. The corresponding NVIDIA
+user-space driver, GSP firmware, and kernel module source must all be 615.71.09.
+
+The patch series originates from QuixiAI's open-gpu-kernel-modules fork:
+
+- `0d2c68ca87d663aac4b3b3d0bd4400850080864d`: return pooled system pages
+  after the final client closes, controlled by `NVreg_SystemMemoryPoolRetainMB`.
+- `79b2ee79b02b825db88523c9be7a64a3aa346dae`: populate CPU-resident ATS fault
+  ranges in place for integrated GPUs, allowing transparent huge pages.
+- `5733a7e8`: retain NVIDIA v615's `NR_KERNEL_MISC_RECLAIMABLE` accounting in
+  the pool-reclamation helper during the rebase.
+
+Use this branch only for the GB10/DGX Spark `7.0.0-1016-nvidia-64k` kernel.
+The home-cluster Puppet module builds these sources as the separate
+`nvidia-spark` DKMS module, retaining NVIDIA's stock open modules for other
+kernels and systems.
+
 
 ## How to Build
 
